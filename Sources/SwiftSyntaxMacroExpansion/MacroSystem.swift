@@ -478,6 +478,10 @@ private func expandBodyMacro(
     decl.body == nil
   {
     leadingWhitespace = " "
+  } else if let varDecl = node as? VariableDeclSyntax,
+    varDecl.bindings.first?.accessorBlock == nil
+  {
+    leadingWhitespace = " "
   } else {
     leadingWhitespace = ""
   }
@@ -728,6 +732,35 @@ private class MacroApplication<Context: MacroExpansionContext>: SyntaxRewriter {
 
         if let newBody = expandedBodies.first {
           let newAccessorBlock = accessorBlock.with(\.accessors, .getter(newBody.statements))
+          let newBinding = varDecl.bindings[bindingIndex].with(\.accessorBlock, newAccessorBlock)
+          var newBindings = varDecl.bindings
+          newBindings[bindingIndex] = newBinding
+          declSyntax = DeclSyntax(varDecl.with(\.bindings, newBindings))
+        }
+      } else if let varDecl = node.as(VariableDeclSyntax.self),
+        varDecl.bindings.count == 1,
+        let bindingIndex = varDecl.bindings.indices.first,
+        varDecl.bindings[bindingIndex].accessorBlock == nil
+      {
+        let expandedBodies = expandMacros(
+          attachedTo: DeclSyntax(varDecl),
+          ofType: BodyMacro.Type.self
+        ) { attributeNode, definition, _ in
+          expandBodyMacro(
+            definition: definition,
+            attributeNode: attributeNode,
+            attachedTo: varDecl,
+            in: contextGenerator(Syntax(node)),
+            indentationWidth: indentationWidth
+          ).map { [$0] }
+        }
+
+        if let newBody = expandedBodies.first {
+          let newAccessorBlock = AccessorBlockSyntax(
+            leftBrace: newBody.leftBrace,
+            accessors: .getter(newBody.statements),
+            rightBrace: newBody.rightBrace
+          )
           let newBinding = varDecl.bindings[bindingIndex].with(\.accessorBlock, newAccessorBlock)
           var newBindings = varDecl.bindings
           newBindings[bindingIndex] = newBinding

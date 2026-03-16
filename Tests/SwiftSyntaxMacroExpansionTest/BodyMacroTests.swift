@@ -63,6 +63,16 @@ struct RemoteBodyMacro: BodyMacro {
   }
 }
 
+struct GenerateMacro: BodyMacro {
+  static func expansion(
+    of node: AttributeSyntax,
+    providingBodyFor declaration: some DeclSyntaxProtocol & WithOptionalCodeBlockSyntax,
+    in context: some MacroExpansionContext
+  ) throws -> [CodeBlockItemSyntax] {
+    return ["UUID().uuidString"]
+  }
+}
+
 struct StartTaskMacro: BodyMacro {
   static func expansion(
     of node: AttributeSyntax,
@@ -269,6 +279,22 @@ final class BodyMacroTests: XCTestCase {
         }
         """,
       macros: ["StartTask": StartTaskMacro.self],
+      indentationWidth: indentationWidth
+    )
+  }
+
+  func testBodyExpansionOnStoredVar() {
+    assertMacroExpansion(
+      """
+      @Generate var myCustomElement: ElementID
+      """,
+      expandedSource: """
+
+        var myCustomElement: ElementID {
+          UUID().uuidString
+        }
+        """,
+      macros: ["Generate": GenerateMacro.self],
       indentationWidth: indentationWidth
     )
   }

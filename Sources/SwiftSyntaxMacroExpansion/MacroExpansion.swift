@@ -415,6 +415,18 @@ public func expandAttachedMacroWithoutCollapsing<Context: MacroExpansionContext>
           providingBodyFor: getterDecl,
           in: context
         )
+      } else if let varDecl = node.as(VariableDeclSyntax.self),
+        varDecl.bindings.count == 1,
+        varDecl.bindings.first?.accessorBlock == nil
+      {
+        // Create an implicit body-less `AccessorDeclSyntax` for a stored property
+        // so the macro can provide a getter body.
+        let getterDecl = AccessorDeclSyntax(accessorSpecifier: .keyword(.get))
+        body = try attachedMacro.expansion(
+          of: attributeNode,
+          providingBodyFor: getterDecl,
+          in: context
+        )
       } else {
         // Compiler error: declaration must have a body.
         throw MacroExpansionError.declarationHasNoBody
